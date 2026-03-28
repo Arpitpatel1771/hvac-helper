@@ -83,8 +83,12 @@ function App() {
   const loadFile = async (file: File) => {
     const arrayBuffer = await file.arrayBuffer();
     const data = new Uint8Array(arrayBuffer);
-    const document = await getDocument({ data }).promise;
-    setPdfArray(data);
+    const pdfBytes = new Uint8Array(data.length);
+    pdfBytes.set(data);
+    const header = new TextDecoder().decode(pdfBytes.subarray(0, 4));
+    console.log('Loaded PDF header:', header, 'length:', pdfBytes.length);
+    const document = await getDocument({ data: pdfBytes }).promise;
+    setPdfArray(pdfBytes);
     setPdfDoc(document);
     setNumPages(document.numPages);
     setSelectedPage(1);
@@ -153,7 +157,10 @@ function App() {
     console.log('Saving PDF with rectangles:', rectangles);
 
     try {
-      const libDoc = await PDFDocument.load(pdfArray);
+      const pdfCopy = pdfArray.slice();
+      const header = new TextDecoder().decode(pdfCopy.subarray(0, 4));
+      console.log('Saving PDF header:', header, 'length:', pdfCopy.length);
+      const libDoc = await PDFDocument.load(pdfCopy, { ignoreEncryption: true });
       for (const rect of rectangles) {
         const page = libDoc.getPage(rect.pageNumber - 1);
         const { width: pageWidth, height: pageHeight } = page.getSize();
@@ -192,7 +199,7 @@ function App() {
         pdfBytes.byteOffset,
         pdfBytes.byteOffset + pdfBytes.byteLength,
       );
-      const blob = new Blob([arrayBuffer], { type: 'application/pdf' });
+      const blob = new Blob([arrayBuffer as ArrayBuffer], { type: 'application/pdf' });
       const url = URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.style.display = 'none';
