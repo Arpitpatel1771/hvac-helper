@@ -1,16 +1,60 @@
-# React + Vite
+# HVAC Helper - Planning & Layout Tool
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+An interactive web-based alternative to plandroid.com for HVAC professionals. This tool allows users to load floor plan PDFs, define zones/sections using interactive drawing tools, and export the modified plan back to a PDF with all annotations preserved and correctly aligned.
 
-Currently, two official plugins are available:
+## 🚀 Current State (Phase 1 Prototype)
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+The project has successfully reached its first milestone, providing a robust foundation for PDF manipulation and interactive spatial planning.
 
-## React Compiler
+### Key Features
+- **PDF Core:**
+  - Load and view multi-page PDF floor plans directly in the browser.
+  - Automatic scaling to fit the workspace while maintaining high-resolution rendering.
+  - Page-by-page navigation for complex architectural sets.
+- **Interactive Drawing Engine:**
+  - **Rectangles:** Click-and-drag to define standard zones (rooms, units, etc.).
+  - **Custom Polygons:** Click-to-node drawing for irregular spaces. Close paths by clicking the start node.
+  - **Live Transformation:** Move and resize any section with a familiar "bounding box" interface (powered by Konva).
+- **Section Management:**
+  - Dynamic sidebar to list, rename, and delete defined sections.
+  - Automatic color-coding for visual distinction between zones.
+  - Sections are page-aware (only shown on the page they were drawn).
+- **Rotation-Aware Export:**
+  - Export the original PDF with all drawings and labels overlaid.
+  - **Smart Coordinate Mapping:** Automatically handles internal PDF rotations (0, 90, 180, 270 degrees) so annotations always land exactly where they were drawn visually.
+  - Maintains transparency and vector quality in the final output.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## 🛠 Tech Stack
+- **Framework:** React + Vite
+- **Styling:** Tailwind CSS 4
+- **PDF Engine:** `pdf-lib` (manipulation) & `react-pdf` (rendering)
+- **Canvas/Drawing:** `react-konva` & `konva`
+- **Icons:** `lucide-react`
 
-## Expanding the ESLint configuration
+## 🔭 The Vision
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+HVAC Helper is designed to grow into a comprehensive suite for HVAC design and calculation.
+
+- **Ductwork Design:** Interactive tools to lay out flexible and rigid ducting with automatic sizing hints.
+- **Load Calculations:** Integrated calculators to determine heating/cooling requirements based on section area and volume.
+- **Equipment Placement:** Drag-and-drop library for indoor/outdoor units, vents, and thermostats.
+- **BOM Generation:** Automatically generate a Bill of Materials based on the drawn plan.
+- **Cloud Sync:** Save and share plans across teams.
+
+## 🏃 Getting Started
+
+1. **Install Dependencies:**
+   ```powershell
+   npm install
+   ```
+2. **Run Development Server:**
+   ```powershell
+   npm run dev
+   ```
+3. **Build for Production:**
+   ```powershell
+   npm run build
+   ```
+
+---
+*Developed with focus on local-first processing and professional precision.*
