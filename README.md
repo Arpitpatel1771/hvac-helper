@@ -41,6 +41,15 @@ HVAC Helper is designed to grow into a comprehensive suite for HVAC design and c
 - **BOM Generation:** Automatically generate a Bill of Materials based on the drawn plan.
 - **Cloud Sync:** Save and share plans across teams.
 
+## Additional Considerations
+
+- Make sure the code follows best practices.
+- Structure the code in a way that is easy to maintain and extend.
+- Make sure the code is readable by other developers, specifically by me who doesn't have a lot of experience with React and frontend development.
+- Dont hesitate to break the code into smaller, more manageable chunks.
+- Keep the code modular and reusable.
+
+
 ## 🏃 Getting Started
 
 1. **Install Dependencies:**
