@@ -16,9 +16,9 @@
  */
 export function mapVisualToPdf(vX, vY, pdfWidth, pdfHeight, rotation) {
   if (rotation === 0) return { x: vX, y: pdfHeight - vY };
-  if (rotation === 90) return { x: pdfWidth - vY, y: pdfHeight - vX };
+  if (rotation === 90)  return { x: vY, y: vX };
   if (rotation === 180) return { x: pdfWidth - vX, y: vY };
-  if (rotation === 270) return { x: vY, y: vX };
+  if (rotation === 270) return { x: pdfWidth - vY, y: pdfHeight - vX };
   return { x: vX, y: pdfHeight - vY };
 }
 
