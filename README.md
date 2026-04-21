@@ -1,69 +1,67 @@
-# HVAC Helper - Planning & Layout Tool
+# HVAC Helper - Floor Plan Annotation Tool
 
-An interactive web-based alternative to plandroid.com for HVAC professionals. This tool allows users to load floor plan PDFs, define zones/sections using interactive drawing tools, and export the modified plan back to a PDF with all annotations preserved and correctly aligned.
+**HVAC Helper** is a local-first, browser-based floor plan annotation tool designed for HVAC professionals. It serves as a streamlined alternative to tools like plandroid.com, allowing users to load PDF floor plans, draw labeled zones (rectangles or polygons), and export a new PDF with those annotations burned in, pixel-perfectly aligned.
 
-## 🚀 Current State (Phase 1 Prototype)
+## 🚀 Features
 
-The project has successfully reached its first milestone, providing a robust foundation for PDF manipulation and interactive spatial planning.
-
-### Key Features
-- **PDF Core:**
-  - Load and view multi-page PDF floor plans directly in the browser.
-  - Automatic scaling to fit the workspace while maintaining high-resolution rendering.
-  - Page-by-page navigation for complex architectural sets.
+- **Multi-page PDF Support:** Load and navigate multi-page architectural sets.
 - **Interactive Drawing Engine:**
-  - **Rectangles:** Click-and-drag to define standard zones (rooms, units, etc.).
-  - **Custom Polygons:** Click-to-node drawing for irregular spaces. Close paths by clicking the start node.
-  - **Live Transformation:** Move and resize any section with a familiar "bounding box" interface (powered by Konva).
-- **Section Management:**
-  - Dynamic sidebar to list, rename, and delete defined sections.
-  - Automatic color-coding for visual distinction between zones.
-  - Sections are page-aware (only shown on the page they were drawn).
-- **Rotation-Aware Export:**
-  - Export the original PDF with all drawings and labels overlaid.
-  - **Smart Coordinate Mapping:** Automatically handles internal PDF rotations (0, 90, 180, 270 degrees) so annotations always land exactly where they were drawn visually.
-  - Maintains transparency and vector quality in the final output.
+  - **Rectangles:** Click-and-drag to define standard zones.
+  - **Custom Polygons:** Click-to-place nodes for irregular spaces; click the start node to close the path.
+  - **Live Transformation:** Move and resize any shape using a bounding box interface (Konva Transformer).
+- **Section Management:** 
+  - Sidebar for listing, renaming, and deleting zones.
+  - Automatic color-coding for visual distinction.
+  - **Page-Aware:** Each shape is strictly tied to the specific page it was drawn on.
+- **Professional Export:**
+  - **Rotation-Aware:** Handles PDFs with internal rotation metadata (0°, 90°, 180°, 270°).
+  - **Coordinate Mapping:** Translates visual Konva coordinates (Top-Left, Pixels) to PDF coordinates (Bottom-Left, Points) with precision.
+  - **Burned-in Annotations:** Exports the original PDF with vector-quality overlays and labels.
 
 ## 🛠 Tech Stack
-- **Framework:** React + Vite
-- **Styling:** Tailwind CSS 4
-- **PDF Engine:** `pdf-lib` (manipulation) & `react-pdf` (rendering)
-- **Canvas/Drawing:** `react-konva` & `konva`
+
+- **Framework:** React 19 (JavaScript) + Vite
+- **Styling:** Tailwind CSS 4 (Zero custom CSS)
+- **Canvas Interaction:** `react-konva` & `konva`
+- **PDF Rendering:** `pdfjs-dist` (Direct rendering to canvas)
+- **PDF Export:** `pdf-lib` (Metadata-aware manipulation)
 - **Icons:** `lucide-react`
 
-## 🔭 The Vision
+## 🏗 Architecture
 
-HVAC Helper is designed to grow into a comprehensive suite for HVAC design and calculation.
+The app is built on three completely separate concerns to ensure performance and reliability:
 
-- **Ductwork Design:** Interactive tools to lay out flexible and rigid ducting with automatic sizing hints.
-- **Load Calculations:** Integrated calculators to determine heating/cooling requirements based on section area and volume.
-- **Equipment Placement:** Drag-and-drop library for indoor/outdoor units, vents, and thermostats.
-- **BOM Generation:** Automatically generate a Bill of Materials based on the drawn plan.
-- **Cloud Sync:** Save and share plans across teams.
+1.  **PDF Display (pdfjs-dist):** Renders the PDF page to a hidden canvas, converts it to a data URL, and displays it as a static background layer in the Konva Stage.
+2.  **Shape Drawing (react-konva):** Handles all user interactions, selection, and shape state management in an interactive overlay layer.
+3.  **PDF Export (pdf-lib):** Loads the original PDF bytes, iterates through the shape state, converts coordinates, and draws the final annotations onto the output document.
 
-## Additional Considerations
+## 📁 Project Structure
 
-- Make sure the code follows best practices.
-- Structure the code in a way that is easy to maintain and extend.
-- Make sure the code is readable by other developers, specifically by me who doesn't have a lot of experience with React and frontend development.
-- Dont hesitate to break the code into smaller, more manageable chunks.
-- Keep the code modular and reusable.
-
+- `src/components/`: Modular, single-purpose UI components (Toolbar, ShapeList, AnnotationCanvas).
+- `src/hooks/`: Encapsulated logic for PDF loading, shape CRUD, and drawing state.
+- `src/utils/`: Core utilities for coordinate conversion (`coordinates.js`), PDF export (`pdfExport.js`), and color management.
 
 ## 🏃 Getting Started
 
-1. **Install Dependencies:**
-   ```powershell
-   npm install
-   ```
-2. **Run Development Server:**
-   ```powershell
-   npm run dev
-   ```
-3. **Build for Production:**
-   ```powershell
-   npm run build
-   ```
+1.  **Install Dependencies:**
+    ```powershell
+    npm install
+    ```
+2.  **Run Development Server:**
+    ```powershell
+    npm run dev
+    ```
+3.  **Build for Production:**
+    ```powershell
+    npm run build
+    ```
+
+## 📜 Development Rules
+
+- **Language:** JavaScript only (No TypeScript).
+- **Styling:** Tailwind CSS only. No custom `.css` files.
+- **Logic:** Keep components small. Explain non-obvious architectural decisions in comments.
+- **Coordinates:** Never pass raw Konva coordinates to `pdf-lib`. Always use the conversion functions in `src/utils/coordinates.js`.
 
 ---
-*Developed with focus on local-first processing and professional precision.*
+*Developed for professional HVAC precision. Local-first, private, and secure.*
