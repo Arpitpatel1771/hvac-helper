@@ -134,9 +134,9 @@ this logic — test with a rotated PDF if the export function is ever modified.
   renders at the natural page size — it has no scaleX/scaleY.
 - `#canvas-size-anchor` is resized to `pageWidth * zoom × pageHeight * zoom` so the scrollbar
   reflects the correct visual size.
-- Because CSS transform is involved, `stage.getPointerPosition()` returns **visual** pixels.
-  Divide by `state.zoom` to get logical (stage) pixels before storing in shapes or comparing
-  coordinates. See `getLogicalPos()` in canvas.js.
+- Konva 10 compensates for the CSS transform internally (`getBoundingClientRect` vs
+  `clientWidth`), so `stage.getPointerPosition()` already returns **logical (stage) pixels**.
+  No manual zoom division is needed. See `getLogicalPos()` in canvas.js.
 - On PDF load, zoom is auto-computed to fit the viewport (`computeFitZoom` in main.js).
 
 ---

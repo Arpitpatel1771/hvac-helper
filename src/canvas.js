@@ -5,9 +5,8 @@
  * itself always renders at the natural page size. This keeps Konva's internal
  * coordinate system clean and export-safe.
  *
- * Because of the CSS transform, stage.getPointerPosition() returns visual pixels.
- * We divide by state.zoom to get logical (stage) pixels before doing anything with
- * the position. See getLogicalPos().
+ * Konva 10 compensates for the CSS transform internally, so getPointerPosition()
+ * already returns stage (logical) coordinates. See getLogicalPos().
  */
 
 import Konva from 'konva';
@@ -204,14 +203,12 @@ export function renderShapes() {
 /**
  * Returns the pointer position in logical (unzoomed) stage coordinates.
  *
- * CSS transform causes stage.getPointerPosition() to return visual pixels
- * (i.e. already scaled down by zoom). Dividing by zoom converts back to the
- * stage's natural pixel space, which is what we store in shapes and export.
+ * Konva 10 internally compensates for CSS transforms on the container via
+ * getBoundingClientRect vs clientWidth, so getPointerPosition() already
+ * returns stage coordinates. No manual zoom division needed here.
  */
 function getLogicalPos() {
-  const pos = stage.getPointerPosition();
-  if (!pos) return null;
-  return { x: pos.x / state.zoom, y: pos.y / state.zoom };
+  return stage.getPointerPosition();
 }
 
 // ── Mouse event handlers ───────────────────────────────────────────────────────
