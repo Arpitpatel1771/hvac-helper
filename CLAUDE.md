@@ -119,6 +119,10 @@ PDF and Konva use different coordinate spaces:
 All conversion lives in `src/utils/coordinates.js`. Never pass raw Konva coordinates to pdf-lib.
 Functions: `polygonToPdfCoords`, `rectToPdfCoords`, `mapVisualToPdf`.
 
+`polygonToPdfCoords` outputs Y-down coordinates (in PDF points). `drawSvgPath` in pdf-lib
+applies `scale(1, -1)` internally, so always call it with `y: pdfHeight` to anchor the SVG
+origin at the page top-left — this makes Y-down path coords resolve to correct PDF Y-up coords.
+
 ### PDF rotation handling
 
 Some PDFs have internal rotation metadata (0°/90°/180°/270°). The export function reads

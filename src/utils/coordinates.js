@@ -70,17 +70,27 @@ export function rectToPdfCoords(shape, stageWidth, stageHeight, pdfWidth, pdfHei
  * @returns {number[]} Flat array [x1, y1, x2, y2, ...] in PDF points
  */
 export function polygonToPdfCoords(points, stageWidth, stageHeight, pdfWidth, pdfHeight, rotation, offsetX = 0, offsetY = 0) {
-  const scaleX = pdfWidth / stageWidth;
-  const scaleY = pdfHeight / stageHeight;
+  // pdfjs renders at VISUAL dimensions (post-rotation). pdf-lib's page.getSize()
+  // returns INTERNAL (pre-rotation) dimensions. For 90°/270° pages the axes are
+  // swapped, so we must derive the correct visual-dimension scale factors.
+  const isSwapped = rotation === 90 || rotation === 270;
+  const visWidthPts  = isSwapped ? pdfHeight : pdfWidth;
+  const visHeightPts = isSwapped ? pdfWidth  : pdfHeight;
 
+  const scaleX = visWidthPts  / stageWidth;
+  const scaleY = visHeightPts / stageHeight;
+
+  // drawSvgPath is called with y=pdfHeight and applies scale(1,-1) internally:
+  //   final PDF_Y = pdfHeight - path_y
+  // So we need: path_y = pdfHeight - pdfY
+  // where pdfY comes from mapVisualToPdf (visual Y-down → PDF internal Y-up).
   const converted = [];
   for (let i = 0; i < points.length; i += 2) {
-    const vX = (offsetX + points[i]) * scaleX;
+    const vX = (offsetX + points[i])     * scaleX;
     const vY = (offsetY + points[i + 1]) * scaleY;
-    
-    const { x, y } = mapVisualToPdf(vX, vY, pdfWidth, pdfHeight, rotation);
-    converted.push(x);
-    converted.push(y);
+    const { x: pdfX, y: pdfY } = mapVisualToPdf(vX, vY, pdfWidth, pdfHeight, rotation);
+    converted.push(pdfX);
+    converted.push(pdfHeight - pdfY);
   }
   return converted;
 }
