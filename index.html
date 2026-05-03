@@ -1,13 +1,197 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>hvac-helper</title>
-  </head>
-  <body>
-    <div id="root"></div>
-    <script type="module" src="/src/main.jsx"></script>
-  </body>
+<head>
+  <meta charset="UTF-8" />
+  <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <link rel="stylesheet" href="./src/index.css" />
+  <title>HVAC Helper</title>
+</head>
+<body class="overflow-hidden h-screen bg-slate-50 text-slate-900">
+
+  <!-- ── Uploader screen ──────────────────────────────────────────────────── -->
+  <div id="uploader-screen" class="h-screen flex flex-col items-center justify-center gap-8">
+    <div class="flex items-center gap-3">
+      <div class="bg-blue-600 p-2 rounded-xl shadow-lg shadow-blue-200">
+        <svg class="w-6 h-6 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+          <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3" d="M13 10V3L4 14h7v7l9-11h-7z"/>
+        </svg>
+      </div>
+      <h1 class="text-2xl font-black text-slate-800 tracking-tight">
+        HVAC <span class="text-blue-600">HELPER</span>
+      </h1>
+    </div>
+
+    <label id="drop-zone"
+      class="border-2 border-dashed border-slate-200 rounded-2xl p-20 cursor-pointer
+             flex flex-col items-center gap-3 hover:border-blue-400 hover:bg-blue-50 transition-colors">
+      <svg class="w-12 h-12 text-slate-300" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5"
+          d="M9 13h6m-3-3v6m5 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0
+             01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z"/>
+      </svg>
+      <span class="text-slate-500 font-medium text-lg">Drop your floor plan PDF here</span>
+      <span class="text-sm text-slate-400">or click to browse</span>
+      <input type="file" id="file-input" accept=".pdf" class="hidden" />
+    </label>
+  </div>
+
+  <!-- ── App screen (hidden until a PDF is loaded) ────────────────────────── -->
+  <div id="app-screen" class="hidden flex-col h-screen">
+
+    <!-- Header -->
+    <header class="h-14 bg-white border-b border-slate-200 flex items-center px-6
+                   justify-between z-30 shadow-sm flex-shrink-0">
+      <div class="flex items-center gap-3">
+        <div class="bg-blue-600 p-1.5 rounded-lg shadow-lg shadow-blue-200">
+          <svg class="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="3"
+              d="M13 10V3L4 14h7v7l9-11h-7z"/>
+          </svg>
+        </div>
+        <h1 class="font-black text-slate-800 tracking-tight text-lg">
+          HVAC <span class="text-blue-600">HELPER</span>
+        </h1>
+      </div>
+      <span id="filename-display"
+        class="text-sm font-bold text-slate-400 bg-slate-50 px-4 py-1.5
+               rounded-full border border-slate-100 truncate max-w-xs">
+      </span>
+    </header>
+
+    <main class="flex-1 flex overflow-hidden">
+
+      <!-- ── Left toolbar ────────────────────────────────────────────────── -->
+      <div class="w-16 bg-white border-r border-slate-200 flex flex-col items-center
+                  py-4 gap-4 shadow-sm z-20 flex-shrink-0">
+
+        <!-- Drawing tools -->
+        <div class="flex flex-col gap-2">
+          <button id="tool-select"
+            class="tool-btn p-3 rounded-xl transition-all text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+            title="Select &amp; Move (V)">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M15 15l-2.5 5L4 4l16 6.5-5 2.5z"/>
+            </svg>
+          </button>
+          <button id="tool-rect"
+            class="tool-btn p-3 rounded-xl transition-all text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+            title="Rectangle (R)">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <rect x="3" y="3" width="18" height="18" rx="1" stroke-width="2"/>
+            </svg>
+          </button>
+          <button id="tool-polygon"
+            class="tool-btn p-3 rounded-xl transition-all text-slate-400 hover:bg-slate-50 hover:text-slate-600"
+            title="Polygon (P)">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M12 3l9 7-3 11H6L3 10z"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="w-8 h-px bg-slate-100"></div>
+
+        <!-- Page navigation -->
+        <div class="flex flex-col items-center gap-2">
+          <button id="page-prev"
+            class="p-2 rounded-lg text-slate-400 hover:bg-slate-50 disabled:opacity-30 transition-colors"
+            title="Previous page">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/>
+            </svg>
+          </button>
+          <span id="page-display" class="text-xs font-bold text-slate-600">1 / 1</span>
+          <button id="page-next"
+            class="p-2 rounded-lg text-slate-400 hover:bg-slate-50 disabled:opacity-30 transition-colors"
+            title="Next page">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/>
+            </svg>
+          </button>
+        </div>
+
+        <div class="w-8 h-px bg-slate-100"></div>
+
+        <!-- Zoom controls -->
+        <div class="flex flex-col items-center gap-2">
+          <button id="zoom-in"
+            class="p-2 rounded-lg text-slate-400 hover:bg-slate-50 disabled:opacity-30 transition-colors"
+            title="Zoom In">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM10 7v3m0 0v3m0-3h3m-3 0H7"/>
+            </svg>
+          </button>
+          <span id="zoom-display" class="text-xs font-bold text-slate-600">100%</span>
+          <button id="zoom-out"
+            class="p-2 rounded-lg text-slate-400 hover:bg-slate-50 disabled:opacity-30 transition-colors"
+            title="Zoom Out">
+            <svg class="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0zM13 10H7"/>
+            </svg>
+          </button>
+        </div>
+
+        <!-- Bottom actions -->
+        <div class="mt-auto flex flex-col gap-2">
+          <button id="btn-export"
+            class="p-3 rounded-xl bg-blue-600 text-white shadow-lg hover:bg-blue-700
+                   transition-all disabled:opacity-50"
+            title="Export PDF">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/>
+            </svg>
+          </button>
+          <button id="btn-close"
+            class="p-3 rounded-xl text-slate-400 hover:bg-red-50 hover:text-red-500 transition-all"
+            title="Close document">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M6 18L18 6M6 6l12 12"/>
+            </svg>
+          </button>
+        </div>
+      </div>
+
+      <!-- ── Canvas scroll area ─────────────────────────────────────────── -->
+      <!--
+        canvas-scroll:    scrollable container, flex-1
+        canvas-size-anchor: sized to pageWidth*zoom × pageHeight*zoom so scrollbars are correct
+        konva-container:  absolutely positioned, CSS-transformed for zoom, actual Konva stage
+      -->
+      <div id="canvas-scroll" class="bg-slate-200 flex-1 overflow-auto p-8">
+        <div id="canvas-size-anchor" style="position:relative; margin:0 auto;">
+          <div id="konva-container"
+            style="position:absolute; top:0; left:0; transform-origin:top left;">
+          </div>
+        </div>
+      </div>
+
+      <!-- ── Right sidebar — shape list ────────────────────────────────── -->
+      <div class="w-64 bg-white border-l border-slate-200 flex flex-col flex-shrink-0 overflow-hidden">
+        <div class="px-4 py-3 border-b border-slate-100">
+          <h2 class="text-sm font-bold text-slate-600 uppercase tracking-wider">Zones</h2>
+        </div>
+        <ul id="shape-list" class="flex-1 overflow-y-auto p-2 flex flex-col gap-1 min-h-0"></ul>
+        <div class="px-4 py-3 border-t border-slate-100 flex-shrink-0">
+          <p class="text-xs text-slate-400 leading-relaxed">
+            <kbd class="bg-slate-100 px-1.5 py-0.5 rounded font-mono">V</kbd> select &nbsp;
+            <kbd class="bg-slate-100 px-1.5 py-0.5 rounded font-mono">R</kbd> rect &nbsp;
+            <kbd class="bg-slate-100 px-1.5 py-0.5 rounded font-mono">P</kbd> polygon<br>
+            <kbd class="bg-slate-100 px-1.5 py-0.5 rounded font-mono">Del</kbd> delete &nbsp;
+            <kbd class="bg-slate-100 px-1.5 py-0.5 rounded font-mono">Esc</kbd> cancel
+          </p>
+        </div>
+      </div>
+
+    </main>
+  </div>
+
+  <script type="module" src="/src/main.js"></script>
+</body>
 </html>
