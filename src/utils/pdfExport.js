@@ -58,12 +58,21 @@ export async function exportAnnotatedPdf(pdfBytes, shapes, stageWidth, stageHeig
       const vY = (shape.y + firstPointY) * scaleY;
       const labelPos = mapVisualToPdf(vX, vY, pdfWidth, pdfHeight, rotation);
 
+      // Convert visual offset (+5 right, +15 below) to internal PDF coords.
+      // The axes swap/negate differently per rotation, so offsets must match.
+      let dx, dy;
+      if (rotation === 90)       { dx = 15; dy = 5; }
+      else if (rotation === 180) { dx = -5; dy = 15; }
+      else if (rotation === 270) { dx = -15; dy = -5; }
+      else                       { dx = 5; dy = -15; }
+
+      // degrees(rotation) cancels the viewer's CW page rotation so text appears upright.
       page.drawText(shape.name, {
-        x: labelPos.x + 5,
-        y: labelPos.y - 15,
+        x: labelPos.x + dx,
+        y: labelPos.y + dy,
         size: 10,
         color: rgb(0, 0, 0),
-        rotate: degrees(-rotation),
+        rotate: degrees(rotation),
       });
     }
   }
