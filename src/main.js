@@ -17,16 +17,20 @@ import {
   initCanvas,
   loadPageBackground,
   renderShapes,
+  renderAnnotations,
   applyZoom,
   cancelDrawing,
   deleteShape,
   deleteSelectedShape,
+  deleteAnnotation,
   setOnShapesChanged,
+  closeActiveTextEditor,
 } from './canvas.js';
 import {
   showApp,
   showUploader,
   updateToolbar,
+  updateTextToolbar,
   renderShapeList,
 } from './ui.js';
 
@@ -34,8 +38,6 @@ import {
 
 initCanvas();
 
-// canvas.js calls this whenever shapes are added or removed, so the sidebar stays
-// in sync without canvas.js needing to know about the DOM.
 setOnShapesChanged(refreshShapeList);
 
 setupFileInput();
@@ -46,15 +48,42 @@ setupKeyboard();
 
 function refreshShapeList() {
   renderShapeList(
-    (id) => { deleteShape(id); refreshShapeList(); },
+    (id) => handleShapeDelete(id),
     (id) => { state.selectedId = id; renderShapes(); refreshShapeList(); },
     (id, name) => {
       const s = state.shapes.find(sh => sh.id === id);
       if (s) s.name = name;
-      // Re-render shapes so the label on canvas updates too
       renderShapes();
     },
+    (annId) => { deleteAnnotation(annId); refreshShapeList(); },
+    (annId) => handleAnnotationSelect(annId),
   );
+  syncTextToolbar();
+}
+
+function syncTextToolbar() {
+  const ann = state.annotations.find(a => a.id === state.selectedId);
+  updateTextToolbar(ann || null);
+}
+
+function handleAnnotationSelect(annId) {
+  state.selectedId = annId;
+  renderShapes();
+  refreshShapeList();
+}
+
+function handleShapeDelete(id) {
+  const linked = state.annotations.filter(a => a.linkedShapeId === id);
+  if (linked.length > 0) {
+    const noun = linked.length === 1 ? 'annotation' : 'annotations';
+    const confirmed = window.confirm(
+      `This zone has ${linked.length} linked ${noun}. Delete the zone and its ${noun}?`
+    );
+    if (!confirmed) return;
+    linked.forEach(a => deleteAnnotation(a.id));
+  }
+  deleteShape(id);
+  refreshShapeList();
 }
 
 // ── File input ─────────────────────────────────────────────────────────────────
@@ -67,7 +96,6 @@ function setupFileInput() {
     if (input.files[0]) loadFile(input.files[0]);
   });
 
-  // Drag-and-drop
   dropZone.addEventListener('dragover', (e) => {
     e.preventDefault();
     dropZone.classList.add('border-blue-400', 'bg-blue-50');
@@ -86,13 +114,14 @@ function setupFileInput() {
 async function loadFile(file) {
   const { pdfDoc, pdfBytes, totalPages } = await loadPdf(file);
 
-  state.file       = file;
-  state.pdfBytes   = pdfBytes;
-  state.pdfDoc     = pdfDoc;
-  state.totalPages = totalPages;
+  state.file        = file;
+  state.pdfBytes    = pdfBytes;
+  state.pdfDoc      = pdfDoc;
+  state.totalPages  = totalPages;
   state.currentPage = 1;
-  state.shapes     = [];
-  state.selectedId = null;
+  state.shapes      = [];
+  state.annotations = [];
+  state.selectedId  = null;
 
   showApp(file.name);
   await goToPage(1, /* fitZoom */ true);
@@ -100,14 +129,10 @@ async function loadFile(file) {
 
 // ── Page navigation ────────────────────────────────────────────────────────────
 
-/**
- * Renders the given page and updates all display state.
- * @param {number} pageNum
- * @param {boolean} fitZoom - if true, auto-compute zoom to fit the viewport
- */
 async function goToPage(pageNum, fitZoom = false) {
+  closeActiveTextEditor();
   cancelDrawing();
-  state.selectedId = null;
+  state.selectedId  = null;
   state.currentPage = pageNum;
 
   const { imageDataUrl, width, height } = await renderPage(state.pdfDoc, pageNum);
@@ -124,14 +149,9 @@ async function goToPage(pageNum, fitZoom = false) {
   refreshShapeList();
 }
 
-/**
- * Computes a zoom level that makes the page fit within the canvas scroll area.
- * Never zooms in beyond 100% — only scales down when necessary.
- */
 function computeFitZoom(pageWidth, pageHeight) {
   const scrollEl = document.getElementById('canvas-scroll');
   if (!scrollEl) return 1;
-  // Subtract padding (p-8 = 32px each side)
   const availW = scrollEl.clientWidth  - 64;
   const availH = scrollEl.clientHeight - 64;
   const fit = Math.min(availW / pageWidth, availH / pageHeight, 1);
@@ -141,12 +161,11 @@ function computeFitZoom(pageWidth, pageHeight) {
 // ── Toolbar ────────────────────────────────────────────────────────────────────
 
 function setupToolbar() {
-  // Tool buttons
   document.getElementById('tool-select').addEventListener('click',  () => setTool('select'));
   document.getElementById('tool-rect').addEventListener('click',    () => setTool('rect'));
   document.getElementById('tool-polygon').addEventListener('click', () => setTool('polygon'));
+  document.getElementById('tool-text').addEventListener('click',    () => setTool('text'));
 
-  // Page navigation
   document.getElementById('page-prev').addEventListener('click', () => {
     if (state.currentPage > 1) goToPage(state.currentPage - 1);
   });
@@ -154,7 +173,6 @@ function setupToolbar() {
     if (state.currentPage < state.totalPages) goToPage(state.currentPage + 1);
   });
 
-  // Zoom
   document.getElementById('zoom-in').addEventListener('click', () => {
     state.zoom = Math.min(3, parseFloat((state.zoom + 0.25).toFixed(2)));
     applyZoom();
@@ -166,13 +184,28 @@ function setupToolbar() {
     updateToolbar();
   });
 
-  // Export
+  document.getElementById('font-size-increase').addEventListener('click', () => {
+    const ann = state.annotations.find(a => a.id === state.selectedId);
+    if (!ann) return;
+    ann.fontSize = Math.min(ann.fontSize + 2, 96);
+    renderAnnotations();
+    syncTextToolbar();
+  });
+  document.getElementById('font-size-decrease').addEventListener('click', () => {
+    const ann = state.annotations.find(a => a.id === state.selectedId);
+    if (!ann) return;
+    ann.fontSize = Math.max(ann.fontSize - 2, 6);
+    renderAnnotations();
+    syncTextToolbar();
+  });
+
   document.getElementById('btn-export').addEventListener('click', handleExport);
 
-  // Close document
   document.getElementById('btn-close').addEventListener('click', () => {
+    closeActiveTextEditor();
     state.file = state.pdfBytes = state.pdfDoc = null;
     state.shapes = [];
+    state.annotations = [];
     state.selectedId = null;
     cancelDrawing();
     showUploader();
@@ -180,17 +213,19 @@ function setupToolbar() {
 }
 
 function setTool(tool) {
-  cancelDrawing();
+  cancelDrawing(); // also closes active text editor
   state.tool = tool;
-  // Re-render shapes so draggable flag updates (only draggable in select mode)
   renderShapes();
   updateToolbar();
+  syncTextToolbar();
 }
 
 // ── Export ─────────────────────────────────────────────────────────────────────
 
 async function handleExport() {
   if (!state.pdfBytes) return;
+
+  closeActiveTextEditor();
 
   const btn = document.getElementById('btn-export');
   btn.disabled = true;
@@ -199,6 +234,7 @@ async function handleExport() {
     const bytes = await exportAnnotatedPdf(
       state.pdfBytes,
       state.shapes,
+      state.annotations,
       state.pageSize.width,
       state.pageSize.height,
     );
@@ -218,16 +254,23 @@ async function handleExport() {
 
 function setupKeyboard() {
   document.addEventListener('keydown', (e) => {
-    // Don't fire shortcuts when the user is typing in an input
-    if (e.target.tagName === 'INPUT') return;
+    if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
 
     if (e.key === 'v') setTool('select');
     if (e.key === 'r') setTool('rect');
     if (e.key === 'p') setTool('polygon');
+    if (e.key === 't') setTool('text');
 
     if (e.key === 'Delete' || e.key === 'Backspace') {
-      deleteSelectedShape();
-      refreshShapeList();
+      if (!state.selectedId) return;
+      const ann = state.annotations.find(a => a.id === state.selectedId);
+      if (ann) {
+        deleteAnnotation(state.selectedId);
+        refreshShapeList();
+      } else {
+        deleteSelectedShape();
+        refreshShapeList();
+      }
     }
 
     if (e.key === 'Escape') {

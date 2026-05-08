@@ -110,16 +110,16 @@ If a test suite is added in the future, this function should be the first thing 
 
 ## TODO
 
-- [ ] Add `annotations: []` to `state.js`
-- [ ] Create `src/utils/hitTest.js` — `findTopmostShapeAt(x, y, shapes)` pure function
-- [ ] Add text tool button to main toolbar in `index.html` (keyboard shortcut `t`)
-- [ ] Add second toolbar row (font size controls) to `index.html`, hidden by default
-- [ ] Implement text tool click handler in `canvas.js` — place annotation + open inline textarea immediately
-- [ ] Implement inline textarea editor in `canvas.js` — positioned overlay, saves on blur/Enter, cancels on Escape
-- [ ] Implement double-click to re-edit existing annotation in `canvas.js`
-- [ ] Implement `renderAnnotations()` in `canvas.js` — Konva.Text nodes, click to select, dragend to update position
-- [ ] Update `renderShapeList` in `ui.js` — nest annotations under linked zone, standalone as top-level
-- [ ] Implement `updateTextToolbar()` in `ui.js` — show/hide second row and font size display based on selection
-- [ ] Wire text tool + font size +/− + delete confirmation in `main.js`
-- [ ] Add confirmation dialog in `main.js` when deleting a zone that has linked annotations
-- [ ] Export annotations as `page.drawText()` in `pdfExport.js` with rotation support
+- [x] Add `annotations: []` to `state.js`
+- [x] Create `src/utils/hitTest.js` — `findTopmostShapeAt(x, y, shapes)` pure function
+- [x] Add text tool button to main toolbar in `index.html` (keyboard shortcut `t`)
+- [x] Add second toolbar row (font size controls) to `index.html`, hidden by default
+- [x] Implement text tool click handler in `canvas.js` — place annotation + open inline textarea immediately
+- [x] Implement inline textarea editor in `canvas.js` — positioned overlay, saves on blur/Enter, cancels on Escape
+- [x] Implement double-click to re-edit existing annotation in `canvas.js`
+- [x] Implement `renderAnnotations()` in `canvas.js` — Konva.Text nodes, click to select, dragend to update position
+- [x] Update `renderShapeList` in `ui.js` — nest annotations under linked zone, standalone as top-level
+- [x] Implement `updateTextToolbar()` in `ui.js` — show/hide second row and font size display based on selection
+- [x] Wire text tool + font size +/− + delete confirmation in `main.js`
+- [x] Add confirmation dialog in `main.js` when deleting a zone that has linked annotations
+- [x] Export annotations as `page.drawText()` in `pdfExport.js` with rotation support

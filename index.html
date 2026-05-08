@@ -59,7 +59,34 @@
       </span>
     </header>
 
-    <main class="flex-1 flex overflow-hidden">
+    <!-- Text formatting toolbar — only visible when a text annotation is selected -->
+    <div id="text-toolbar"
+         class="hidden bg-white border-b border-slate-200 flex items-center px-6 py-2 gap-4
+                z-20 flex-shrink-0">
+      <span class="text-xs font-semibold text-slate-400 uppercase tracking-wider">Text</span>
+      <div class="flex items-center gap-2">
+        <button id="font-size-decrease"
+          class="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+          title="Decrease font size">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M20 12H4"/>
+          </svg>
+        </button>
+        <span id="font-size-display"
+          class="text-sm font-bold text-slate-600 min-w-[3rem] text-center select-none">
+          14px
+        </span>
+        <button id="font-size-increase"
+          class="p-1.5 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-600 transition-colors"
+          title="Increase font size">
+          <svg class="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+
+    <main class="flex-1 flex overflow-hidden min-h-0">
 
       <!-- ── Left toolbar ────────────────────────────────────────────────── -->
       <div class="w-16 bg-white border-r border-slate-200 flex flex-col items-center
@@ -68,27 +95,39 @@
         <!-- Drawing tools -->
         <div class="flex flex-col gap-2">
           <button id="tool-select"
-            class="tool-btn p-3 rounded-xl transition-all text-slate-400 hover:bg-slate-50 hover:text-slate-600"
-            title="Select &amp; Move (V)">
+            class="tool-btn p-2 rounded-xl transition-all text-slate-400 hover:bg-slate-50 hover:text-slate-600 flex flex-col items-center gap-0.5"
+            title="Select &amp; Move">
             <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M15 15l-2.5 5L4 4l16 6.5-5 2.5z"/>
             </svg>
+            <span class="text-[9px] font-mono font-semibold leading-none">V</span>
           </button>
           <button id="tool-rect"
-            class="tool-btn p-3 rounded-xl transition-all text-slate-400 hover:bg-slate-50 hover:text-slate-600"
-            title="Rectangle (R)">
+            class="tool-btn p-2 rounded-xl transition-all text-slate-400 hover:bg-slate-50 hover:text-slate-600 flex flex-col items-center gap-0.5"
+            title="Rectangle">
             <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <rect x="3" y="3" width="18" height="18" rx="1" stroke-width="2"/>
             </svg>
+            <span class="text-[9px] font-mono font-semibold leading-none">R</span>
           </button>
           <button id="tool-polygon"
-            class="tool-btn p-3 rounded-xl transition-all text-slate-400 hover:bg-slate-50 hover:text-slate-600"
-            title="Polygon (P)">
+            class="tool-btn p-2 rounded-xl transition-all text-slate-400 hover:bg-slate-50 hover:text-slate-600 flex flex-col items-center gap-0.5"
+            title="Polygon">
             <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
               <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
                 d="M12 3l9 7-3 11H6L3 10z"/>
             </svg>
+            <span class="text-[9px] font-mono font-semibold leading-none">P</span>
+          </button>
+          <button id="tool-text"
+            class="tool-btn p-2 rounded-xl transition-all text-slate-400 hover:bg-slate-50 hover:text-slate-600 flex flex-col items-center gap-0.5"
+            title="Text">
+            <svg class="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2"
+                d="M4 6h16M4 12h8M4 18h12"/>
+            </svg>
+            <span class="text-[9px] font-mono font-semibold leading-none">T</span>
           </button>
         </div>
 
@@ -175,14 +214,15 @@
       <!-- ── Right sidebar — shape list ────────────────────────────────── -->
       <div class="w-64 bg-white border-l border-slate-200 flex flex-col flex-shrink-0 overflow-hidden">
         <div class="px-4 py-3 border-b border-slate-100">
-          <h2 class="text-sm font-bold text-slate-600 uppercase tracking-wider">Zones</h2>
+          <h2 class="text-sm font-bold text-slate-600 uppercase tracking-wider">Zones &amp; Notes</h2>
         </div>
         <ul id="shape-list" class="flex-1 overflow-y-auto p-2 flex flex-col gap-1 min-h-0"></ul>
         <div class="px-4 py-3 border-t border-slate-100 flex-shrink-0">
           <p class="text-xs text-slate-400 leading-relaxed">
             <kbd class="bg-slate-100 px-1.5 py-0.5 rounded font-mono">V</kbd> select &nbsp;
             <kbd class="bg-slate-100 px-1.5 py-0.5 rounded font-mono">R</kbd> rect &nbsp;
-            <kbd class="bg-slate-100 px-1.5 py-0.5 rounded font-mono">P</kbd> polygon<br>
+            <kbd class="bg-slate-100 px-1.5 py-0.5 rounded font-mono">P</kbd> polygon &nbsp;
+            <kbd class="bg-slate-100 px-1.5 py-0.5 rounded font-mono">T</kbd> text<br>
             <kbd class="bg-slate-100 px-1.5 py-0.5 rounded font-mono">Del</kbd> delete &nbsp;
             <kbd class="bg-slate-100 px-1.5 py-0.5 rounded font-mono">Esc</kbd> cancel
           </p>

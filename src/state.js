@@ -15,8 +15,9 @@ export const state = {
 
   // Drawing
   shapes: [],           // all shapes across all pages
-  selectedId: null,     // id of the selected shape, or null
-  tool: 'select',       // 'select' | 'rect' | 'polygon'
+  annotations: [],      // all text annotations across all pages
+  selectedId: null,     // id of the selected shape or annotation, or null
+  tool: 'select',       // 'select' | 'rect' | 'polygon' | 'text'
 
   // View
   zoom: 1,              // e.g. 0.75 = 75% — applied as CSS transform, not Konva scale
