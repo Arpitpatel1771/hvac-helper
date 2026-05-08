@@ -13,6 +13,7 @@ import Konva from 'konva';
 import { v4 as uuid } from 'uuid';
 import { state } from './state.js';
 import { getColor } from './utils/colors.js';
+import { findTopmostShapeAt } from './utils/hitTest.js';
 
 // ── Konva instances ────────────────────────────────────────────────────────────
 let stage = null;
@@ -26,7 +27,10 @@ let drawStart = null;     // {x, y} where mousedown started, for rect drawing
 let previewNode = null;   // Konva node for the live rect preview
 let polyPoints = [];      // absolute [x0,y0, x1,y1, ...] for polygon in progress
 
-// ── Callback: called after shapes array changes (add / delete) ─────────────────
+// ── Inline text editor state ──────────────────────────────────────────────────
+let activeTextarea = null; // the currently open textarea overlay, if any
+
+// ── Callback: called after shapes/annotations array changes ───────────────────
 let onShapesChanged = null;
 export function setOnShapesChanged(cb) { onShapesChanged = cb; }
 
@@ -64,7 +68,6 @@ export function applyZoom() {
   container.style.transform = `scale(${zoom})`;
   container.style.transformOrigin = 'top left';
 
-  // The anchor sits in the layout and controls the scrollable area.
   anchor.style.width = `${width * zoom}px`;
   anchor.style.height = `${height * zoom}px`;
 }
@@ -90,17 +93,14 @@ export function loadPageBackground(imageDataUrl, width, height) {
 // ── Shape rendering ────────────────────────────────────────────────────────────
 
 /**
- * Clears and redraws all shapes for the current page.
- * Also reattaches the transformer to the selected shape.
+ * Clears and redraws all shapes (and annotations) for the current page.
  */
 export function renderShapes() {
   shapesLayer.destroyChildren();
 
-  // Transformer must be added to the layer after destroyChildren wipes it.
   transformer = new Konva.Transformer({
     rotateEnabled: false,
     boundBoxFunc: (oldBox, newBox) => {
-      // Prevent shrinking below 5px
       if (newBox.width < 5 || newBox.height < 5) return oldBox;
       return newBox;
     },
@@ -114,8 +114,6 @@ export function renderShapes() {
     const strokeColor = isSelected ? '#2563eb' : s.color;
     const strokeWidth = isSelected ? 2 : 1;
 
-    // Group is positioned at (shape.x, shape.y). Its children use (0,0) as origin.
-    // Drag moves the group → we update shape.x/shape.y in dragend.
     const group = new Konva.Group({
       id: s.id,
       x: s.x,
@@ -133,7 +131,6 @@ export function renderShapes() {
         strokeWidth,
       }));
     } else {
-      // Polygon points are stored relative to (shape.x, shape.y)
       group.add(new Konva.Line({
         points: s.points,
         fill: s.color,
@@ -144,32 +141,19 @@ export function renderShapes() {
       }));
     }
 
-    group.add(new Konva.Text({
-      text: s.name,
-      x: 5,
-      y: 5,
-      fontSize: 12,
-      fill: '#1e293b',
-      listening: false, // text shouldn't eat mouse events
-    }));
-
-    // Select on click (select tool only)
     group.on('click', (e) => {
       if (state.tool !== 'select') return;
-      e.cancelBubble = true; // stop the stage click from firing deselect
+      e.cancelBubble = true;
       state.selectedId = s.id;
       renderShapes();
       if (onShapesChanged) onShapesChanged();
     });
 
-    // After drag: save new position into state
     group.on('dragend', () => {
       s.x = group.x();
       s.y = group.y();
     });
 
-    // After resize via transformer: apply the scale into width/height or points, then reset scale.
-    // We store the actual dimensions, not a scale multiplier, so this keeps state clean.
     group.on('transformend', () => {
       const sx = group.scaleX();
       const sy = group.scaleY();
@@ -189,23 +173,213 @@ export function renderShapes() {
     shapesLayer.add(group);
   }
 
-  // Attach transformer to selected shape (only makes sense in select mode)
+  // Only attach transformer to zone shapes, not annotations
   if (state.selectedId && state.tool === 'select') {
-    const node = shapesLayer.findOne('#' + state.selectedId);
-    if (node) transformer.nodes([node]);
+    const isShape = state.shapes.some(s => s.id === state.selectedId);
+    if (isShape) {
+      const node = shapesLayer.findOne('#' + state.selectedId);
+      if (node) transformer.nodes([node]);
+    }
+  }
+
+  // Always render annotations on top of shapes
+  renderAnnotations();
+
+  shapesLayer.batchDraw();
+}
+
+// ── Annotation rendering ───────────────────────────────────────────────────────
+
+/**
+ * Renders text annotation Konva nodes for the current page.
+ * Can be called standalone (only annotations need updating) or from renderShapes.
+ * When called standalone, removes existing annotation nodes before re-adding.
+ */
+export function renderAnnotations() {
+  // Remove any existing annotation nodes (no-op when called from renderShapes
+  // since destroyChildren already cleared everything)
+  shapesLayer.find('.annotation').forEach(n => n.destroy());
+
+  const pageAnnotations = state.annotations.filter(a => a.page === state.currentPage);
+
+  for (const ann of pageAnnotations) {
+    const isSelected = ann.id === state.selectedId;
+
+    const textNode = new Konva.Text({
+      text: ann.text || ' ',
+      fontSize: ann.fontSize,
+      fontFamily: 'sans-serif',
+      fill: '#1e293b',
+      lineHeight: 1.4,
+    });
+
+    const group = new Konva.Group({
+      id: ann.id,
+      x: ann.x,
+      y: ann.y,
+      draggable: state.tool === 'select',
+      name: 'annotation',
+    });
+
+    // Selection/hover indicator drawn behind the text
+    if (isSelected) {
+      group.add(new Konva.Rect({
+        x: -2,
+        y: -2,
+        width: textNode.width() + 4,
+        height: textNode.height() + 4,
+        stroke: '#3b82f6',
+        strokeWidth: 1,
+        dash: [4, 3],
+        listening: false,
+      }));
+    }
+
+    group.add(textNode);
+
+    group.on('click', (e) => {
+      e.cancelBubble = true;
+      if (state.tool === 'text') {
+        // In text tool: single click opens editor
+        closeActiveTextEditor();
+        openAnnotationEditor(ann, false);
+        return;
+      }
+      if (state.tool !== 'select') return;
+      state.selectedId = ann.id;
+      renderShapes();
+      if (onShapesChanged) onShapesChanged();
+    });
+
+    group.on('dblclick', (e) => {
+      e.cancelBubble = true;
+      closeActiveTextEditor();
+      openAnnotationEditor(ann, false);
+    });
+
+    group.on('dragend', () => {
+      ann.x = group.x();
+      ann.y = group.y();
+    });
+
+    shapesLayer.add(group);
   }
 
   shapesLayer.batchDraw();
+}
+
+// ── Inline text editor ─────────────────────────────────────────────────────────
+
+/**
+ * Opens a textarea overlay positioned over the annotation on the canvas.
+ * isNew: if true, an empty save (Escape or blur with no text) removes the annotation.
+ */
+function openAnnotationEditor(ann, isNew) {
+  if (activeTextarea) {
+    activeTextarea.remove();
+    activeTextarea = null;
+  }
+
+  const anchor = document.getElementById('canvas-size-anchor');
+  const textarea = document.createElement('textarea');
+  activeTextarea = textarea;
+
+  const visualX = ann.x * state.zoom;
+  const visualY = ann.y * state.zoom;
+  const visualFontSize = ann.fontSize * state.zoom;
+
+  Object.assign(textarea.style, {
+    position:   'absolute',
+    left:       `${visualX}px`,
+    top:        `${visualY}px`,
+    fontSize:   `${visualFontSize}px`,
+    fontFamily: 'sans-serif',
+    lineHeight: '1.4',
+    minWidth:   '80px',
+    padding:    '2px 4px',
+    border:     '1.5px dashed #3b82f6',
+    borderRadius: '2px',
+    background: 'rgba(255,255,255,0.88)',
+    resize:     'none',
+    outline:    'none',
+    zIndex:     '50',
+    overflow:   'hidden',
+  });
+
+  textarea.value = ann.text;
+  anchor.appendChild(textarea);
+
+  // Auto-resize height as user types
+  const autoResize = () => {
+    textarea.style.height = 'auto';
+    textarea.style.height = `${textarea.scrollHeight}px`;
+  };
+  textarea.addEventListener('input', autoResize);
+  autoResize();
+
+  textarea.focus();
+  // Place cursor at end
+  textarea.setSelectionRange(textarea.value.length, textarea.value.length);
+
+  const save = () => {
+    const text = textarea.value;
+    if (!text.trim() && isNew) {
+      state.annotations = state.annotations.filter(a => a.id !== ann.id);
+      if (state.selectedId === ann.id) state.selectedId = null;
+    } else {
+      ann.text = text;
+    }
+    cleanup();
+    renderAnnotations();
+    if (onShapesChanged) onShapesChanged();
+  };
+
+  const cancel = () => {
+    if (isNew) {
+      state.annotations = state.annotations.filter(a => a.id !== ann.id);
+      if (state.selectedId === ann.id) state.selectedId = null;
+    }
+    cleanup();
+    renderAnnotations();
+    if (onShapesChanged) onShapesChanged();
+  };
+
+  const cleanup = () => {
+    textarea.removeEventListener('blur', onBlur);
+    textarea.remove();
+    if (activeTextarea === textarea) activeTextarea = null;
+  };
+
+  const onBlur = () => save();
+  textarea.addEventListener('blur', onBlur);
+
+  textarea.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') {
+      textarea.removeEventListener('blur', onBlur);
+      save();
+    }
+    // Enter = newline (natural textarea behavior); Ctrl+Enter also saves
+    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) {
+      textarea.removeEventListener('blur', onBlur);
+      save();
+    }
+  });
+}
+
+/**
+ * Closes the active inline text editor (saves its content).
+ * Call before switching tools or pages.
+ */
+export function closeActiveTextEditor() {
+  if (activeTextarea) {
+    activeTextarea.blur();
+  }
 }
 
 // ── Pointer helper ─────────────────────────────────────────────────────────────
 
 /**
  * Returns the pointer position in logical (unzoomed) stage coordinates.
- *
- * Konva 10 internally compensates for CSS transforms on the container via
- * getBoundingClientRect vs clientWidth, so getPointerPosition() already
- * returns stage coordinates. No manual zoom division needed here.
  */
 function getLogicalPos() {
   return stage.getPointerPosition();
@@ -234,7 +408,6 @@ function onMouseMove() {
   const pos = getLogicalPos();
   if (!pos) return;
 
-  // Live rect preview while dragging
   if (state.tool === 'rect' && drawStart && previewNode) {
     previewNode.x(Math.min(pos.x, drawStart.x));
     previewNode.y(Math.min(pos.y, drawStart.y));
@@ -243,7 +416,6 @@ function onMouseMove() {
     previewLayer.batchDraw();
   }
 
-  // Polygon: show a trailing line from last placed node to the cursor
   if (state.tool === 'polygon' && polyPoints.length >= 2) {
     drawPolyPreview([...polyPoints, pos.x, pos.y]);
   }
@@ -258,7 +430,6 @@ function onMouseUp() {
   const width  = Math.abs(pos.x - drawStart.x);
   const height = Math.abs(pos.y - drawStart.y);
 
-  // Only save if the rect has meaningful size (not just a stray click)
   if (width > 5 && height > 5) {
     saveShape({ type: 'rect', x, y, width, height });
   }
@@ -274,7 +445,6 @@ function onStageClick(e) {
   if (!pos) return;
 
   if (state.tool === 'select') {
-    // Click on the background (not a shape) → deselect
     if (e.target === stage) {
       state.selectedId = null;
       renderShapes();
@@ -285,13 +455,10 @@ function onStageClick(e) {
 
   if (state.tool === 'polygon') {
     if (polyPoints.length === 0) {
-      // First click: start the polygon
       polyPoints = [pos.x, pos.y];
       drawPolyPreview(polyPoints);
     } else {
-      // Check distance to the first node — close polygon if near enough
       const distToStart = Math.hypot(pos.x - polyPoints[0], pos.y - polyPoints[1]);
-      // Scale the closure threshold by zoom so it feels consistent at any zoom level
       const threshold = 10 / state.zoom;
 
       if (distToStart < threshold && polyPoints.length >= 6) {
@@ -301,6 +468,29 @@ function onStageClick(e) {
         drawPolyPreview(polyPoints);
       }
     }
+    return;
+  }
+
+  if (state.tool === 'text') {
+    // Place a new annotation at the clicked position, linked to the topmost zone there
+    const pageShapes = state.shapes.filter(s => s.page === state.currentPage);
+    const linkedShapeId = findTopmostShapeAt(pos.x, pos.y, pageShapes);
+
+    const ann = {
+      id: uuid(),
+      type: 'annotation',
+      text: '',
+      x: pos.x,
+      y: pos.y,
+      fontSize: 14,
+      page: state.currentPage,
+      linkedShapeId,
+    };
+    state.annotations.push(ann);
+    state.selectedId = ann.id;
+    renderAnnotations();
+    if (onShapesChanged) onShapesChanged();
+    openAnnotationEditor(ann, true);
   }
 }
 
@@ -319,13 +509,11 @@ function drawPolyPreview(points) {
     }));
   }
 
-  // Draw a small dot at each placed node so the user can see where they clicked
   for (let i = 0; i < polyPoints.length; i += 2) {
     previewLayer.add(new Konva.Circle({
       x: polyPoints[i],
       y: polyPoints[i + 1],
       radius: 4,
-      // First node is filled blue — that's the target for closing the polygon
       fill: i === 0 ? '#3b82f6' : '#ffffff',
       stroke: '#3b82f6',
       strokeWidth: 1.5,
@@ -337,9 +525,6 @@ function drawPolyPreview(points) {
 }
 
 function closePolygon() {
-  // polyPoints are absolute stage coords.
-  // We store polygons with x/y = first point, and points[] relative to that.
-  // This matches the format pdfExport.js expects (offsetX = shape.x, offsetY = shape.y).
   const anchorX = polyPoints[0];
   const anchorY = polyPoints[1];
   const relPoints = polyPoints.map((v, i) => i % 2 === 0 ? v - anchorX : v - anchorY);
@@ -348,7 +533,7 @@ function closePolygon() {
     type: 'polygon',
     x: anchorX,
     y: anchorY,
-    points: relPoints, // [0, 0, rel1, rel2, ...]
+    points: relPoints,
   });
 
   polyPoints = [];
@@ -380,13 +565,23 @@ export function deleteShape(id) {
 }
 
 export function deleteSelectedShape() {
-  if (state.selectedId) deleteShape(state.selectedId);
+  if (state.selectedId && state.shapes.some(s => s.id === state.selectedId)) {
+    deleteShape(state.selectedId);
+  }
+}
+
+export function deleteAnnotation(id) {
+  state.annotations = state.annotations.filter(a => a.id !== id);
+  if (state.selectedId === id) state.selectedId = null;
+  renderAnnotations();
+  if (onShapesChanged) onShapesChanged();
 }
 
 /**
  * Cancel any drawing in progress (e.g. when switching tools or changing page).
  */
 export function cancelDrawing() {
+  closeActiveTextEditor();
   drawStart = null;
   polyPoints = [];
   if (previewNode) { previewNode.destroy(); previewNode = null; }

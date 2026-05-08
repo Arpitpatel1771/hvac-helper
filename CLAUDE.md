@@ -198,3 +198,6 @@ original for pdf-lib export. See `loadPdf()` in pdfLoader.js.
 - **Document all features** — every feature (new or modified) must be added to the Features
   section above. Fixes that change observable behaviour count as features.
 - Keep files small and single-purpose. Comment non-obvious architectural decisions.
+- **No GitHub issues** — never create, edit, or comment on GitHub issues in this repo.
+  PRDs live in `prds/` as `.md` files. The bottom of each PRD file contains a `## TODO`
+  section that acts as the issue tracker.
